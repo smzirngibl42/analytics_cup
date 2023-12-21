@@ -171,9 +171,50 @@ class Dataloader():
         requests = train_data_dict['requests.csv']
         reviews = train_data_dict['reviews.csv']
         diet = train_data_dict['diet.csv']
+
+        train_set = requests.merge(reviews, on=['AuthorId','RecipeId'])
+        train_set = train_set[train_set['Like'].notna()]                    # Filter samples with no Like value (not usable for training)
+        train_set['Like'] = train_set['Like'].astype(int)                   # Convert Like to False=0 and True=1
+        train_set = train_set.merge(diet,on='AuthorId')
+        train_set = train_set.merge(recipes,on='RecipeId')
+
+        # train_set.to_csv('train_set_raw.csv',',')
+
+        # /--------------------------------
+
+
+        # TODO Aditi
+
+
+        # /--------------------------------
+
+
+        # TODO Andres
+
+
+        # /--------------------------------
+
+
+        # TODO Niclas
+
+
+        # /--------------------------------
+
+
+        # TODO Stefan
+
+
+        # /--------------------------------
+
         
 
-        #TODO: Data tidying and transformation into train_set of type numpy array, split off of target
+        target = train_set['Like']
+        train_set = train_set.drop('Like',axis=1)
+
+        train_set.to_csv('train_set.csv',',')
+
+        target = target.to_numpy()
+        train_set = train_set.to_numpy()
 
 
         return train_set, target
