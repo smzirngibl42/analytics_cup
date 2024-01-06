@@ -1,0 +1,21 @@
+import pandas as pd
+
+omnivor_data = pd.read_csv('omnivor.csv')
+vegetarisch_data = pd.read_csv('vegetarisch.csv')
+
+file_path = 'recipes.csv'
+data = pd.read_csv(file_path)
+
+def classify_recipe(row):
+    words = [ingredient.strip() for ingredient in row['RecipeIngredientParts'].split(',')]
+    
+    if any(word in words for Zutat in omnivor_data['Word']):
+        return 0
+    elif any(word in words for Zutat in vegetarisch_data['Word']):
+        return 1
+    else:
+        return 2
+
+data['RecipeClass'] = data.apply(classify_recipe, axis=1)
+
+data.to_csv('OmivorVegiVegan.csv', index=False)
