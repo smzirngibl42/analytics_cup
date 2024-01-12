@@ -193,24 +193,24 @@ class Dataloader():
 
 
         # Drop the coulmn RecipeYield as it has too many NAN values
-        recipes.drop('RecipeYield', axis=1, inplace=True)  
+        train_set.drop('RecipeYield', axis=1, inplace=True)  
 
-        # Delete recipes with non-sensical names
+        # Delete train_set with non-sensical names
         words_to_check = ['Soap', 'Cleaner', 'Cologne', 'Deodorizer', 'Detergent', 'Room Spray', 'Cleaning', 'Windex', 'Cleanser', 'Bath', 'Play dough', 'Aftershave', 'Playdough']
         pattern = re.compile('|'.join(words_to_check), flags=re.IGNORECASE)
-        mask = recipes['Name'].str.contains(pattern)
-        recipes.drop(recipes.loc[mask].index, inplace=True)
-        recipes = recipes[~recipes['Name'].str.contains('-----')]
-        recipes['Name'] = recipes['Name'].apply(html.unescape)
+        mask = train_set['Name'].str.contains(pattern)
+        train_set.drop(train_set.loc[mask].index, inplace=True)
+        train_set = train_set[~train_set['Name'].str.contains('-----')]
+        train_set['Name'] = train_set['Name'].apply(html.unescape)
 
         # Delete rows with character(0) values
-        recipes = recipes.loc[(recipes['RecipeIngredientQuantities'] != "character(0)") & (recipes['RecipeIngredientParts'] != "character(0)")]
+        train_set = train_set.loc[(train_set['RecipeIngredientQuantities'] != "character(0)") & (train_set['RecipeIngredientParts'] != "character(0)")]
 
         # Categorize the recipes into more specific categories
-        recipes.loc[recipes['Name'].str.contains('soup', case=False), 'RecipeCategory'] = 'Soup'
+        train_set.loc[train_set['Name'].str.contains('soup', case=False), 'RecipeCategory'] = 'Soup'
 
         # Fill up NA values in RecipeServings
-        recipes['RecipeServings'] = recipes['RecipeServings'].fillna(recipes.groupby('RecipeCategory')['RecipeServings'].transform('mean').round())
+        train_set['RecipeServings'] = train_set['RecipeServings'].fillna(train_set.groupby('RecipeCategory')['RecipeServings'].transform('mean').round())
 
 
         # /--------------------------------
@@ -256,6 +256,31 @@ class Dataloader():
 
 
         # TODO Andres
+
+        # Calories(calculated)
+        train_set['TotalCalories_'] = train_set[['FatContent', 'SaturatedFatContent', 'CarbohydrateContent', 'ProteinContent']].sum(axis=1)
+
+        # Percentage of total calories(calculated)
+        # train_set['CarbsPercentage'] = (train_set['CarbohydrateContent'] / train_set['Calories'])
+        train_set['FatPercentage'] = ((train_set['FatContent'] + train_set['SaturatedFatContent']) / train_set['Calories'])
+        train_set['ProteinPercentage'] = (train_set['ProteinContent'] / train_set['Calories'])
+
+        # Threshold for 
+        # carbs_threshold = 0.2
+        fat_threshold = 0.4
+        protein_threshold = 0.25 
+
+        # New columns for classification
+        train_set['HighCarbs_'] = 0
+        train_set['HighFat_'] = 0
+        train_set['HighProtein_'] = 0
+
+        # Classify based on thresholds
+        # train_set.loc[train_set['CarbsPercentage'] > carbs_threshold, 'HighCarbs'] = 1
+        train_set.loc[train_set['FatPercentage'] > fat_threshold, 'HighFat_'] = 1
+        train_set.loc[train_set['ProteinPercentage'] > protein_threshold, 'HighProtein_'] = 1
+
+        train_set = train_set.drop(['FatPercentage', 'ProteinPercentage'], axis=1)
 
 
         # /--------------------------------
