@@ -5,6 +5,8 @@ import glob
 import sys
 import argparse
 from scipy import stats
+import re
+import html
 
 """
 from sklearn import preprocessing
@@ -183,6 +185,34 @@ class Dataloader():
 
         #train_set.to_csv("train_set_raw.csv",",")
 
+
+        # /--------------------------------
+
+
+        # TODO Aditi
+
+
+        # Drop the coulmn RecipeYield as it has too many NAN values
+        recipes.drop('RecipeYield', axis=1, inplace=True)  
+
+        # Delete recipes with non-sensical names
+        words_to_check = ['Soap', 'Cleaner', 'Cologne', 'Deodorizer', 'Detergent', 'Room Spray', 'Cleaning', 'Windex', 'Cleanser', 'Bath', 'Play dough', 'Aftershave', 'Playdough']
+        pattern = re.compile('|'.join(words_to_check), flags=re.IGNORECASE)
+        mask = recipes['Name'].str.contains(pattern)
+        recipes.drop(recipes.loc[mask].index, inplace=True)
+        recipes = recipes[~recipes['Name'].str.contains('-----')]
+        recipes['Name'] = recipes['Name'].apply(html.unescape)
+
+        # Delete rows with character(0) values
+        recipes = recipes.loc[(recipes['RecipeIngredientQuantities'] != "character(0)") & (recipes['RecipeIngredientParts'] != "character(0)")]
+
+        # Categorize the recipes into more specific categories
+        recipes.loc[recipes['Name'].str.contains('soup', case=False), 'RecipeCategory'] = 'Soup'
+
+        # Fill up NA values in RecipeServings
+        recipes['RecipeServings'] = recipes['RecipeServings'].fillna(recipes.groupby('RecipeCategory')['RecipeServings'].transform('mean').round())
+
+
         # /--------------------------------
 
 
@@ -222,12 +252,6 @@ class Dataloader():
         train_set["RecipeClass"] = train_set['RecipeIngredientParts'].apply(classify_recipe)
 
         
-        # /--------------------------------
-
-
-        # TODO Aditi
-
-
         # /--------------------------------
 
 
