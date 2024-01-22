@@ -140,7 +140,43 @@ class AdaBoostM1():
         print('recall score: ',recall_score(y_val,predict))
         print('confusion matrix (tn,fp,fn,tp): ',confusion_matrix(y_val,clf.predict(X_val)).ravel())
         
+class AdaBoostSVM():
 
+    def __init__(self, dataloader):
+        self.train_set, self.test_set = dataloader.wrangle()
+
+    def train(self):
+        print("Classifier: AdaBoost with SVM base classifier")
+
+        X = self.preprocess_data(self.train_set)
+        y = self.target
+
+        # Comment out if needed
+        feature_selector = FeatureSelection(y,X,feature_names)
+        feature_selector.select_k_best(k=15)
+        feature_selector.recursive_feature_elim()
+        
+        X_train, X_val, y_train, y_val = ms.train_test_split(X, y, train_size=0.8, random_state=42)
+
+        base_classifier = SVC(kernel='rbf', C=2.81, gamma=0.56, probability=True)
+        ada_boost_classifier = AdaBoostClassifier(base_classifier, n_estimators=50, random_state=42)
+
+        model = Pipeline([
+            ("sampling", RandomOverSampler(random_state=0)),
+            ("clf", ada_boost_classifier)
+        ])
+
+        cv = ms.StratifiedShuffleSplit(n_splits=5, test_size=0.2, random_state=42)
+
+        model.fit(X_train, y_train)
+
+        predictions = model.predict(X_val)
+
+        print("Balanced Accuracy Score: ", balanced_accuracy_score(y_val, predictions))
+        print("Recall Score: ", recall_score(y_val, predictions))
+
+        tn, fp, fn, tp = confusion_matrix(y_val, predictions).ravel()
+        print("Confusion Matrix (tn, fp, fn, tp): ", tn, fp, fn, tp)
 
 class GradientBoost():
     def __init__(self, dataloader):
