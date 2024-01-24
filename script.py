@@ -139,44 +139,135 @@ class AdaBoostM1():
         print("balanced-accuracy score: ",bas(y_val,predict))
         print('recall score: ',recall_score(y_val,predict))
         print('confusion matrix (tn,fp,fn,tp): ',confusion_matrix(y_val,clf.predict(X_val)).ravel())
-        
-class AdaBoostSVM():
+"""        
+def main():
+    dataloader = Dataloader()
+    svm = SVM(dataloader)
+    ada_boost_svm = AdaBoostSVM(dataloader, base_classifier=svm)
+    ada_boost_svm.train()
+    print("Finished")
+"""
 
-    def __init__(self, dataloader):
+class AdaBoostSVM():
+    def __init__(self, dataloader, base_classifier):
         self.train_set, self.test_set = dataloader.wrangle()
+        self.base_classifier = base_classifier
 
     def train(self):
-        print("Classifier: AdaBoost with SVM base classifier")
+        bad_features = ['NumOfIngredients', 'SodiumContent']
+        self.train_set.drop(bad_features, axis=1, inplace=True)
+        self.test_set.drop(bad_features, axis=1, inplace=True)
 
-        X = self.preprocess_data(self.train_set)
-        y = self.target
+        self.train_set = self.train_set[[
+            'HighCalories',
+            'LowProtein',
+            'LowFat',
+            'LowSugar',
+            'HighFiber',
+            'Age',
+            'Calories',
+            'FatContent',
+            'SaturatedFatContent',
+            'FiberContent',
+            'SugarContent',
+            'ProteinContent',
+            'HighCalorieContent',
+            'LowProteinContent',
+            'LowFatContent',
+            'DietOmnivore',
+            'DietVegi',
+            'DietVegan',
+            'RecipeDietOmnivore',
+            'RecipeDietVegi',
+            'RecipeDietVegan',
+            'Like']]
 
-        # Comment out if needed
-        feature_selector = FeatureSelection(y,X,feature_names)
-        feature_selector.select_k_best(k=15)
-        feature_selector.recursive_feature_elim()
-        
-        X_train, X_val, y_train, y_val = ms.train_test_split(X, y, train_size=0.8, random_state=42)
+        y = self.train_set.Like.to_numpy()
+        self.train_set.drop('Like', axis=1, inplace=True)
+        feature_names = self.train_set.columns
+        print('Used features:')
+        print(feature_names.to_list())
+        print('\n')
+        X = self.train_set.to_numpy()
 
-        base_classifier = SVC(kernel='rbf', C=2.81, gamma=0.56, probability=True)
-        ada_boost_classifier = AdaBoostClassifier(base_classifier, n_estimators=50, random_state=42)
+        X = preprocessing.normalize(X, norm="l2")
+        X_train, X_val, y_train, y_val = ms.train_test_split(X, y, train_size=0.8, random_state=2024)
+
+        base_svc = SVC()
+
+        ada_boost = AdaBoostClassifier(
+            base_estimator=base_svc,
+            n_estimators=50,  # You can adjust this parameter
+            random_state=2024
+        )
 
         model = Pipeline([
-            ("sampling", RandomOverSampler(random_state=0)),
-            ("clf", ada_boost_classifier)
+            ("sampling", RandomOverSampler(random_state=2024)),
+            # ("sampling", RandomUnderSampler(random_state=2024)),
+            # ("sampling", SMOTE(random_state=2024)),
+            ("clf", ada_boost)
         ])
 
-        cv = ms.StratifiedShuffleSplit(n_splits=5, test_size=0.2, random_state=42)
+        cv = StratifiedShuffleSplit(n_splits=5, test_size=0.2, random_state=2024)
+
+        print('start training')
 
         model.fit(X_train, y_train)
 
-        predictions = model.predict(X_val)
+        predict = model.predict(X_val)
 
-        print("Balanced Accuracy Score: ", balanced_accuracy_score(y_val, predictions))
-        print("Recall Score: ", recall_score(y_val, predictions))
+        print("Classifier: AdaBoost with Support Vector Machine as a base classifier")
+        print("balanced-accuracy score: ", bas(y_val, predict))
+        print('recall score: ', recall_score(y_val, predict))
+        print('confusion matrix (tn,fp,fn,tp): ', confusion_matrix(y_val, model.predict(X_val)).ravel())
 
-        tn, fp, fn, tp = confusion_matrix(y_val, predictions).ravel()
-        print("Confusion Matrix (tn, fp, fn, tp): ", tn, fp, fn, tp)
+        # save model
+        with open('model_ada_boost_svm.pkl', 'wb') as f:
+            pickle.dump(model, f)
+
+        # test
+        print('\nstart testing')
+        self.test_set.reset_index(drop=True, inplace=True)
+        self.test_set = self.test_set.sort_values('TestSetId', ignore_index=True)
+        output = self.test_set.TestSetId.copy()
+        output = pd.DataFrame(output)
+
+        self.test_set = self.test_set[[
+            'HighCalories',
+            'LowProtein',
+            'LowFat',
+            'LowSugar',
+            'HighFiber',
+            'Age',
+            'Calories',
+            'FatContent',
+            'SaturatedFatContent',
+            'FiberContent',
+            'SugarContent',
+            'ProteinContent',
+            'DietOmnivore',
+            'DietVegi',
+            'DietVegan',
+            'RecipeDietOmnivore',
+            'RecipeDietVegi',
+            'RecipeDietVegan'
+        ]]
+
+        X_test = self.test_set.to_numpy()
+        X_test = preprocessing.normalize(X_test, norm="l2")
+
+        predict_test = model.predict(X_test)
+        print('testing finished\n')
+
+        output = output.rename(columns={'TestSetId': 'id'})
+        output.id = output.id.astype(int)
+        output['prediction'] = predict_test
+
+        output.to_csv('predictions_ada_boost_svm.csv', ',', index=False)
+
+
+if __name__ == "__main__":
+    main()
 
 class GradientBoost():
     def __init__(self, dataloader):
